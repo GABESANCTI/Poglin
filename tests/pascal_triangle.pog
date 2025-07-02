@@ -1,0 +1,46 @@
+// tests/pascal_triangle.pog
+// Objetivo: Gerar o Triângulo de Pascal para 'n' linhas.
+
+start {
+    var n : Int = 0;    // Inicialize todas as variáveis!
+    var row : Int = 0;
+    var col : Int = 0;
+    var coef : Int = 0;
+
+    println("Digite o numero de linhas (n >= 1) para o Triangulo de Pascal:");
+    n = readLine();
+
+    if (n < 1) {
+        println("Erro: O numero de linhas deve ser maior ou igual a 1.");
+    } else {
+        row = 0;
+        while (row < n) {
+            col = 0;
+            coef = 1; 
+            
+            var spaces_count : Int = n - row;
+            var current_space : Int = 0;
+            while (current_space < spaces_count) {
+                println(" "); 
+                current_space = current_space + 1;
+            }
+
+            while (col <= row) {
+                if (col > 0) {
+                    coef = coef * (row - col + 1) / col;
+                }
+                
+                if (col == 0) {
+                     println(coef);
+                } else {
+                     println(" " + coef);
+                }
+                
+                col = col + 1;
+            }
+            println("");
+            row = row + 1;
+        }
+    }
+    pog;
+} end

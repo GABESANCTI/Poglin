@@ -1,0 +1,16 @@
+start {
+    var num1 : Int = 0;
+    var num2 : Int = 0;
+    var sum : Int = 0;
+
+    println("Digite o primeiro numero:");
+    num1 = readLine();
+
+    println("Digite o segundo numero:");
+    num2 = readLine();
+
+    sum = num1 + num2;
+
+    println("A soma e: " + sum);
+    pog;
+} end
