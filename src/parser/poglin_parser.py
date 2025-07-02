@@ -1,13 +1,11 @@
-# src/parser/poglin_parser.py
 import sys
 from antlr4.error.ErrorListener import ErrorListener
-from src.lexer.poglinParser import poglinParser # Importa o parser gerado
+from src.lexer.poglinParser import poglinParser 
 
 class CustomErrorListener(ErrorListener):
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         error_message = f"ERRO SINTÁTICO [Linha {line}, Coluna {column}]: {msg.replace('at ', 'encontrado ')}"
         print(error_message, file=sys.stderr)
-        # Ao levantar uma exceção, a execução do compilador pode ser interrompida aqui.
         raise Exception("Erro Sintático Encontrado.")
 
 class PoglinParserAnalyzer:
@@ -15,7 +13,7 @@ class PoglinParserAnalyzer:
         self.token_stream = token_stream
         self.parser_successful = False
         self.parse_tree = None
-        self.parser = None # Armazena a instância do parser para acesso posterior (e.g., para o toStringTree)
+        self.parser = None # Armazena a instância do parser para acesso posterior
 
     def analyze(self):
         self.parser = poglinParser(self.token_stream)
