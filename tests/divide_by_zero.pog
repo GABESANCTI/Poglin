@@ -1,0 +1,22 @@
+start {
+    var a : Int = 10;
+    var b : Int = 0;
+    var c : Int = 5;
+    var result : Int = 0;
+
+    println("Teste de divisao por zero:");
+
+    # Divisao por literal zero (deve ser detectado na analise semantica)
+    result = a / 0; 
+    println("Resultado da divisao por zero literal: " + result);
+
+    # Divisao por variavel que contem zero (detectado em tempo de execucao, se nao for constante)
+    result = a / b;
+    println("Resultado da divisao por variavel zero: " + result);
+
+    # Divisao normal
+    result = a / c;
+    println("Resultado da divisao normal: " + result);
+
+    pog;
+} end
