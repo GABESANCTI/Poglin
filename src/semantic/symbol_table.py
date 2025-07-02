@@ -1,4 +1,4 @@
-class SymbolTable:
+class SymbolTable: 
     def __init__(self):
         self.scopes = [{}]
 
@@ -25,3 +25,8 @@ class SymbolTable:
             if name in scope:
                 return scope[name]
         return None
+
+    def exists(self, name):
+        return self.is_declared(name)  # ou copia a lógica direto aqui
+    def add(self, name, var_type):
+        self.declare(name, var_type)

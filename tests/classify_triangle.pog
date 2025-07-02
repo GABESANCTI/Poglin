@@ -1,17 +1,7 @@
-// tests/classify_triangle.pog
-// Objetivo: Classificar um triangulo a partir de 3 lados.
-
 start {
-    var a : Int = 0; // Inicialize
-    var b : Int = 0; // Inicialize
-    var c : Int = 0; // Inicialize
-
-    println("Digite o lado a:");
-    a = readLine();
-    println("Digite o lado b:");
-    b = readLine();
-    println("Digite o lado c:");
-    c = readLine();
+    var a : Int = 3;
+    var b : Int = 4;
+    var c : Int = 5;
 
     if (a <= 0 || b <= 0 || c <= 0) {
         println("Medidas invalidas: Lados devem ser positivos.");

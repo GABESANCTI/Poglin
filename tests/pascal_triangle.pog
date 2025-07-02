@@ -1,16 +1,15 @@
-// tests/pascal_triangle.pog
-// Objetivo: Gerar o Triângulo de Pascal para 'n' linhas.
-
 start {
-    var n : Int = 0;    // Inicialize todas as variáveis!
+    var n : Int = 5; // Definido como 5 para fins de teste semantico
     var row : Int = 0;
     var col : Int = 0;
     var coef : Int = 0;
 
-    println("Digite o numero de linhas (n >= 1) para o Triangulo de Pascal:");
-    n = readLine();
+    // A linha abaixo foi comentada pois readLine() retorna String
+    // e 'n' eh Int, causando erro semantico sem uma funcao de conversao.
+    // println("Digite o numero de linhas (n >= 1) para o Triangulo de Pascal:");
+    // n = readLine(); 
 
-    if (n < 1) {
+    if (n < 1) { // Essa condicao agora dependera do valor inicial de 'n'
         println("Erro: O numero de linhas deve ser maior ou igual a 1.");
     } else {
         row = 0;
