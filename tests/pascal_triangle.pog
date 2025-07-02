@@ -1,26 +1,21 @@
 start {
-    var n : Int = 5; // Definido como 5 para fins de teste semantico
+    var n : Int = 5;
     var row : Int = 0;
     var col : Int = 0;
     var coef : Int = 0;
 
-    // A linha abaixo foi comentada pois readLine() retorna String
-    // e 'n' eh Int, causando erro semantico sem uma funcao de conversao.
-    // println("Digite o numero de linhas (n >= 1) para o Triangulo de Pascal:");
-    // n = readLine(); 
-
-    if (n < 1) { // Essa condicao agora dependera do valor inicial de 'n'
+    if (n < 1) {
         println("Erro: O numero de linhas deve ser maior ou igual a 1.");
     } else {
         row = 0;
         while (row < n) {
             col = 0;
-            coef = 1; 
+            coef = 1;
             
             var spaces_count : Int = n - row;
             var current_space : Int = 0;
             while (current_space < spaces_count) {
-                println(" "); 
+                println(" ");
                 current_space = current_space + 1;
             }
 
@@ -30,9 +25,9 @@ start {
                 }
                 
                 if (col == 0) {
-                     println(coef);
+                    println(coef);
                 } else {
-                     println(" " + coef);
+                    println(" " + coef);
                 }
                 
                 col = col + 1;

@@ -1,1 +1,9 @@
-python main.py tests/sum.pog --ast
+Anotações finais de como utilizar o poglin
+
+--ast: Gera a Árvore Sintática Abstrata (AST)--> em output/<nome_arquivo>_ast.png.
+
+--tac: Imprime o Código de Três Endereços (TAC) no terminal -->  salva em output/<nome_arquivo>.tac.
+
+--llvm: Imprime o LLVM IR no console e salva em output/<nome_arquivo>.ll.
+
+exemplo: 
