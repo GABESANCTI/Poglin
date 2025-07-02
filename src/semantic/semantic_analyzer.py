@@ -1,5 +1,4 @@
-# src/semantic/semantic_analyzer.py
-import sys
+from antlr4 import *
 from src.lexer.poglinParser import poglinParser
 from src.lexer.poglinVisitor import poglinVisitor
 from src.semantic.symbol_table import SymbolTable
@@ -8,311 +7,156 @@ class SemanticAnalyzer(poglinVisitor):
     def __init__(self):
         self.symbol_table = SymbolTable()
         self.errors = []
-        self.current_function_type = None 
-        self.poglin_types = {
-            poglinParser.INT_TYPE: 'Int',
-            poglinParser.STRING_TYPE: 'String'
-        }
 
-    def report_error(self, message, line=None, column=None):
-        if line is not None and column is not None:
-            self.errors.append(f"ERRO SEMÂNTICO [Linha {line}, Coluna {column}]: {message}")
-        else:
-            self.errors.append(f"ERRO SEMÂNTICO: {message}")
-        print(self.errors[-1], file=sys.stderr)
+    def report_error(self, message, line, column):
+        error_msg = f"ERRO SEMÂNTICO [Linha {line}, Coluna {column}]: {message}"
+        print(error_msg)
+        self.errors.append(error_msg)
 
-    def get_errors(self):
-        return self.errors
-
-    # Visitar a regra principal 'program'
     def visitProgram(self, ctx: poglinParser.ProgramContext):
-        self.symbol_table.enter_scope() # Escopo global
-        self.visitChildren(ctx)
+        self.symbol_table.enter_scope()
+        result = self.visitChildren(ctx)
         self.symbol_table.exit_scope()
-        return len(self.errors) == 0 # Retorna True se nao houver erros
+        return len(self.errors) == 0
 
-    # Visitar a regra 'statement'
-    # Esta é uma regra multiplexada, entao precisamos verificar qual alternativa casou
     def visitStatement(self, ctx: poglinParser.StatementContext):
-        if ctx.VAR(): # var ID : type = expression;
+        if ctx.VAR():
             var_name = ctx.ID().getText()
-            var_line = ctx.ID().symbol.line
-            var_column = ctx.ID().symbol.column
-            
-            # Verificacao de declaracao duplicada
-            success, error_msg = self.symbol_table.declare_symbol(var_name, None, var_line, var_column) # Tipo sera inferido/verificado
-            if not success:
-                self.report_error(error_msg, var_line, var_column)
-                return None # Nao continua processando este statement para evitar erros em cascata
-            
-            # Obtem o tipo declarado
             declared_type_text = ctx.type_().getText()
-            declared_poglin_type = self.poglin_types.get(getattr(poglinParser, declared_type_text + '_TYPE', None), declared_type_text)
+            declared_type = declared_type_text.capitalize()
 
-            # Visita a expressao de inicializacao para obter seu tipo
-            expr_type_info = self.visit(ctx.expression())
-            if expr_type_info:
-                expr_poglin_type = expr_type_info['type']
-                expr_line = expr_type_info['line']
-                expr_column = expr_type_info['column']
-                
-                # Verificacao de compatibilidade de tipos na inicializacao
-                if declared_poglin_type != expr_poglin_type:
-                    self.report_error(f"Incompatibilidade de tipos na inicialização de '{var_name}': esperado '{declared_poglin_type}', encontrado '{expr_poglin_type}'.", expr_line, expr_column)
-                else:
-                    # Atualiza o tipo na tabela de simbolos
-                    self.symbol_table.lookup_symbol(var_name)['type'] = declared_poglin_type
+            if self.symbol_table.is_declared_in_current_scope(var_name):
+                self.report_error(f"Variável '{var_name}' já declarada no escopo atual.", ctx.start.line, ctx.start.column)
             else:
-                # Se a expressao de inicializacao teve erro, o tipo nao pode ser inferido
-                self.report_error(f"Expressão de inicialização inválida para '{var_name}'.", var_line, var_column)
-            
-            return None # Retorna None pois ja processamos
+                expr_type_info = self.visit(ctx.expression())
+                expr_type = expr_type_info.get('type', 'Unknown')
+                if expr_type != declared_type:
+                    self.report_error(
+                        f"Tipo incompatível para '{var_name}': esperado '{declared_type}', encontrado '{expr_type}'.",
+                        ctx.start.line, ctx.start.column
+                    )
+                self.symbol_table.declare(var_name, declared_type)
 
-        elif ctx.ASSIGN() and not ctx.READLINE(): # ID = expression; (reatribuição)
+        elif ctx.ID() and ctx.expression():
             var_name = ctx.ID().getText()
-            var_line = ctx.ID().symbol.line
-            var_column = ctx.ID().symbol.column
-            
-            # Verificacao de declaracao previa
-            symbol_info = self.symbol_table.lookup_symbol(var_name)
-            if not symbol_info:
-                self.report_error(f"Variável '{var_name}' não declarada.", var_line, var_column)
-                return None
-            
-            # Visita a expressao do lado direito para obter seu tipo
-            expr_type_info = self.visit(ctx.expression())
-            if expr_type_info:
-                expr_poglin_type = expr_type_info['type']
-                expr_line = expr_type_info['line']
-                expr_column = expr_type_info['column']
-                
-                # Verificacao de compatibilidade de tipos na atribuicao
-                if symbol_info['type'] != expr_poglin_type:
-                    self.report_error(f"Incompatibilidade de tipos na atribuição para '{var_name}': esperado '{symbol_info['type']}', encontrado '{expr_poglin_type}'.", expr_line, expr_column)
+            if not self.symbol_table.is_declared(var_name):
+                self.report_error(f"Variável '{var_name}' não declarada.", ctx.start.line, ctx.start.column)
             else:
-                self.report_error(f"Expressão inválida na atribuição para '{var_name}'.", var_line, var_column)
-            return None
+                var_type = self.symbol_table.get_type(var_name)
+                expr_type_info = self.visit(ctx.expression())
+                expr_type = expr_type_info.get('type', 'Unknown')
+                if expr_type != var_type:
+                    self.report_error(
+                        f"Atribuição inválida para '{var_name}': esperado '{var_type}', encontrado '{expr_type}'.",
+                        ctx.start.line, ctx.start.column
+                    )
 
-        elif ctx.PRINTLN(): # println(expression);
-            expr_type_info = self.visit(ctx.expression())
-            # println pode aceitar Int ou String, entao nao precisa de verificacao de tipo aqui.
-            # Apenas garantimos que a expressao foi visitada.
-            return None
-            
-        elif ctx.ASSIGN() and ctx.READLINE(): # ID = readLine();
-            var_name = ctx.ID().getText()
-            var_line = ctx.ID().symbol.line
-            var_column = ctx.ID().symbol.column
-            
-            # Verificacao de declaracao previa
-            symbol_info = self.symbol_table.lookup_symbol(var_name)
-            if not symbol_info:
-                self.report_error(f"Variável '{var_name}' não declarada.", var_line, var_column)
-                return None
-            
-            # readLine retorna String, entao a variavel deve ser String
-            if symbol_info['type'] != 'String':
-                self.report_error(f"Variável '{var_name}' do tipo '{symbol_info['type']}' não pode receber entrada de 'readLine()'. Esperado 'String'.", var_line, var_column)
-            return None
+        return self.visitChildren(ctx)
 
-        elif ctx.IF():
-            self.visit(ctx.expression()) # Visita a condicao
-            
-            self.symbol_table.enter_scope() # Novo escopo para o bloco THEN
-            # Lógica para visitar statements dentro do THEN block
-            # (Reutiliza a lógica de iteração de blocos do ASTGenerator)
-            in_current_block = False
-            brace_count = 0
-            for child in ctx.children:
-                if child == ctx.LBRACE(0):
-                    in_current_block = True
-                    brace_count += 1
-                    continue
-                if child == ctx.RBRACE(0) and brace_count == 1:
-                    in_current_block = False
-                    brace_count -= 1
-                    break # Importante sair aqui para não pegar statements do ELSE
-                if in_current_block and isinstance(child, poglinParser.StatementContext):
-                    self.visit(child)
-            self.symbol_table.exit_scope() # Sai do escopo THEN
+    def visitExpression(self, ctx: poglinParser.ExpressionContext):
+        return self.visitChildren(ctx)
 
-            if ctx.ELSE():
-                self.symbol_table.enter_scope() # Novo escopo para o bloco ELSE
-                # Lógica para visitar statements dentro do ELSE block
-                in_current_block = False
-                brace_count = 0
-                for child in ctx.children:
-                    if child == ctx.LBRACE(1): # LBRACE(1) para o ELSE
-                        in_current_block = True
-                        brace_count += 1
-                        continue
-                    if child == ctx.RBRACE(1) and brace_count == 1: # RBRACE(1) para o ELSE
-                        in_current_block = False
-                        brace_count -= 1
-                        break
-                    if in_current_block and isinstance(child, poglinParser.StatementContext):
-                        self.visit(child)
-                self.symbol_table.exit_scope() # Sai do escopo ELSE
-            return None
-
-        elif ctx.WHILE():
-            self.visit(ctx.expression()) # Visita a condicao
-            
-            self.symbol_table.enter_scope() # Novo escopo para o bloco LOOP
-            # Lógica para visitar statements dentro do LOOP block
-            in_current_block = False
-            brace_count = 0
-            for child in ctx.children:
-                if child == ctx.LBRACE(0):
-                    in_current_block = True
-                    brace_count += 1
-                    continue
-                if child == ctx.RBRACE(0) and brace_count == 1:
-                    in_current_block = False
-                    brace_count -= 1
-                    break
-                if in_current_block and isinstance(child, poglinParser.StatementContext):
-                    self.visit(child)
-            self.symbol_table.exit_scope() # Sai do escopo LOOP
-            return None
-        
-        elif ctx.POG():
-            return None # Nao faz verificacao semantica para 'pog;'
-
-        return self.visitChildren(ctx) # Default: continua a visita para outras regras de statement
-
-
-    # Métodos para visitar expressões e retornar seus tipos
-    # Cada método de expressão deve retornar um dicionário: {'type': 'Int'/'String', 'line': int, 'column': int}
-    
     def visitLogicalOrExpression(self, ctx: poglinParser.LogicalOrExpressionContext):
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.logicalAndExpression(0))
+
         left_type_info = self.visit(ctx.logicalAndExpression(0))
-        if len(ctx.logicalAndExpression()) > 1: # Se tiver operador OR
-            right_type_info = self.visit(ctx.logicalAndExpression(1))
-            
-            if left_type_info and right_type_info:
-                # Operadores logicos esperam Int (para booleanos)
-                if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
-                    self.report_error(f"Operador '||' espera operandos Int, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", ctx.OR().symbol.line, ctx.OR().symbol.column)
-                    return {'type': 'Error', 'line': ctx.OR().symbol.line, 'column': ctx.OR().symbol.column}
-                return {'type': 'Int', 'line': ctx.OR().symbol.line, 'column': ctx.OR().symbol.column}
-        return left_type_info
+        right_type_info = self.visit(ctx.logicalAndExpression(1))
+
+        if left_type_info['type'] != 'Bool' or right_type_info['type'] != 'Bool':
+            self.report_error("Operador '||' requer operandos booleanos.", ctx.start.line, ctx.start.column)
+        return {'type': 'Bool', 'line': ctx.start.line, 'column': ctx.start.column}
 
     def visitLogicalAndExpression(self, ctx: poglinParser.LogicalAndExpressionContext):
-        left_type_info = self.visit(ctx.equalityExpression(0))
-        if len(ctx.equalityExpression()) > 1: # Se tiver operador AND
-            right_type_info = self.visit(ctx.equalityExpression(1))
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.equalityExpression(0))
 
-            if left_type_info and right_type_info:
-                if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
-                    self.report_error(f"Operador '&&' espera operandos Int, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", ctx.AND().symbol.line, ctx.AND().symbol.column)
-                    return {'type': 'Error', 'line': ctx.AND().symbol.line, 'column': ctx.AND().symbol.column}
-                return {'type': 'Int', 'line': ctx.AND().symbol.line, 'column': ctx.AND().symbol.column}
-        return left_type_info
+        left_type_info = self.visit(ctx.equalityExpression(0))
+        right_type_info = self.visit(ctx.equalityExpression(1))
+
+        if left_type_info['type'] != 'Bool' or right_type_info['type'] != 'Bool':
+            self.report_error("Operador '&&' requer operandos booleanos.", ctx.start.line, ctx.start.column)
+        return {'type': 'Bool', 'line': ctx.start.line, 'column': ctx.start.column}
 
     def visitEqualityExpression(self, ctx: poglinParser.EqualityExpressionContext):
-        left_type_info = self.visit(ctx.relationalExpression(0))
-        if ctx.EQUALS() or ctx.NEQUALS():
-            right_type_info = self.visit(ctx.relationalExpression(1))
-            op_symbol = ctx.EQUALS() if ctx.EQUALS() else ctx.NEQUALS()
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.relationalExpression(0))
 
-            if left_type_info and right_type_info:
-                # Igualdade pode ser entre Int e Int, ou String e String
-                if left_type_info['type'] != right_type_info['type']:
-                    self.report_error(f"Operador '{op_symbol.getText()}' espera operandos do mesmo tipo, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", op_symbol.symbol.line, op_symbol.symbol.column)
-                    return {'type': 'Error', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                return {'type': 'Int', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column} # Retorna Int para booleanos
-        return left_type_info
+        left_type_info = self.visit(ctx.relationalExpression(0))
+        right_type_info = self.visit(ctx.relationalExpression(1))
+
+        if left_type_info['type'] != right_type_info['type']:
+            self.report_error("Operadores de igualdade requerem operandos do mesmo tipo.", ctx.start.line, ctx.start.column)
+        return {'type': 'Bool', 'line': ctx.start.line, 'column': ctx.start.column}
 
     def visitRelationalExpression(self, ctx: poglinParser.RelationalExpressionContext):
-        left_type_info = self.visit(ctx.additiveExpression(0))
-        if ctx.LT() or ctx.LTE() or ctx.GT() or ctx.GTE():
-            right_type_info = self.visit(ctx.additiveExpression(1))
-            op_symbol = None
-            if ctx.LT(): op_symbol = ctx.LT()
-            elif ctx.LTE(): op_symbol = ctx.LTE()
-            elif ctx.GT(): op_symbol = ctx.GT()
-            elif ctx.GTE(): op_symbol = ctx.GTE()
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.additiveExpression(0))
 
-            if left_type_info and right_type_info:
-                # Operadores relacionais esperam Int
-                if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
-                    self.report_error(f"Operador '{op_symbol.getText()}' espera operandos Int, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", op_symbol.symbol.line, op_symbol.symbol.column)
-                    return {'type': 'Error', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                return {'type': 'Int', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-        return left_type_info
+        left_type_info = self.visit(ctx.additiveExpression(0))
+        right_type_info = self.visit(ctx.additiveExpression(1))
+
+        if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
+            self.report_error("Operadores relacionais requerem operandos inteiros.", ctx.start.line, ctx.start.column)
+        return {'type': 'Bool', 'line': ctx.start.line, 'column': ctx.start.column}
 
     def visitAdditiveExpression(self, ctx: poglinParser.AdditiveExpressionContext):
-        left_type_info = self.visit(ctx.multiplicativeExpression(0))
-        if ctx.PLUS() or ctx.MINUS():
-            right_type_info = self.visit(ctx.multiplicativeExpression(1))
-            op_symbol = ctx.PLUS() if ctx.PLUS() else ctx.MINUS()
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.multiplicativeExpression(0))
 
-            if left_type_info and right_type_info:
-                # Soma/Subtracao: Int com Int
-                # Pode haver concatenacao de String com String ou String com Int
-                if op_symbol == ctx.PLUS(): # Apenas o '+' pode ser usado para concatenacao
-                    if left_type_info['type'] == 'String' and right_type_info['type'] == 'String':
-                        return {'type': 'String', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                    if left_type_info['type'] == 'String' and right_type_info['type'] == 'Int':
-                        return {'type': 'String', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                    if left_type_info['type'] == 'Int' and right_type_info['type'] == 'String':
-                        return {'type': 'String', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                
-                # Para Int, Int + Int ou Int - Int
-                if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
-                    self.report_error(f"Operador '{op_symbol.getText()}' espera operandos Int, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", op_symbol.symbol.line, op_symbol.symbol.column)
-                    return {'type': 'Error', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                return {'type': 'Int', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-        return left_type_info
+        left = self.visit(ctx.multiplicativeExpression(0))
+        right = self.visit(ctx.multiplicativeExpression(1))
+        op_token = ctx.PLUS()[0] if ctx.PLUS() else ctx.MINUS()[0]
+
+        if op_token.getText() == '+':
+            if left['type'] == 'String' or right['type'] == 'String':
+                return {'type': 'String', 'line': op_token.symbol.line, 'column': op_token.symbol.column}
+
+        if left['type'] != 'Int' or right['type'] != 'Int':
+            self.report_error("Operadores '+' e '-' requerem operandos inteiros.", op_token.symbol.line, op_token.symbol.column)
+        return {'type': 'Int', 'line': op_token.symbol.line, 'column': op_token.symbol.column}
 
     def visitMultiplicativeExpression(self, ctx: poglinParser.MultiplicativeExpressionContext):
+        if ctx.getChildCount() == 1:
+            return self.visit(ctx.unaryExpression(0))
+
         left_type_info = self.visit(ctx.unaryExpression(0))
-        if ctx.MULT() or ctx.DIV():
-            right_type_info = self.visit(ctx.unaryExpression(1))
-            op_symbol = ctx.MULT() if ctx.MULT() else ctx.DIV()
+        right_type_info = self.visit(ctx.unaryExpression(1))
+        op_token = ctx.MULT()[0] if ctx.MULT() else ctx.DIV()[0]
 
-            if left_type_info and right_type_info:
-                # Multiplicacao/Divisao esperam Int
-                if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
-                    self.report_error(f"Operador '{op_symbol.getText()}' espera operandos Int, encontrado '{left_type_info['type']}' e '{right_type_info['type']}'.", op_symbol.symbol.line, op_symbol.symbol.column)
-                    return {'type': 'Error', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-                
-                # Verificacao de divisao por zero
-                if ctx.DIV() and right_type_info['value'] == 0: # Isso requer que a expressao tenha um valor, o que eh dificil na fase semantica
-                    # Para divisao por zero, precisaríamos do valor da expressão,
-                    # o que só é possível em tempo de execução ou com avaliação constante.
-                    # Por enquanto, apenas verificamos os tipos.
-                    # Uma verificação mais robusta de divisão por zero virá na geração de código.
-                    pass # Será feito mais adiante.
-                
-                return {'type': 'Int', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-        return left_type_info
+        if left_type_info['type'] != 'Int' or right_type_info['type'] != 'Int':
+            self.report_error("Operadores '*' e '/' requerem operandos inteiros.", op_token.symbol.line, op_token.symbol.column)
 
-    def visitUnaryExpression(self, ctx: poglinParser.UnaryExpressionContext):
-        if ctx.NOT():
-            operand_type_info = self.visit(ctx.unaryExpression())
-            op_symbol = ctx.NOT()
-            if operand_type_info and operand_type_info['type'] != 'Int':
-                self.report_error(f"Operador '!' espera operando Int, encontrado '{operand_type_info['type']}'.", op_symbol.symbol.line, op_symbol.symbol.column)
-                return {'type': 'Error', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-            return {'type': 'Int', 'line': op_symbol.symbol.line, 'column': op_symbol.symbol.column}
-        return self.visit(ctx.primary())
+        if op_token.getText() == '/' and 'value' in right_type_info and right_type_info['value'] == 0:
+            self.report_error("Divisão por zero.", op_token.symbol.line, op_token.symbol.column)
+
+        if 'value' in left_type_info and 'value' in right_type_info:
+            left_val = left_type_info['value']
+            right_val = right_type_info['value']
+            result = 0
+            if op_token.getText() == '*':
+                result = left_val * right_val
+            elif op_token.getText() == '/' and right_val != 0:
+                result = left_val // right_val
+            return {'type': 'Int', 'line': op_token.symbol.line, 'column': op_token.symbol.column, 'value': result}
+
+        return {'type': 'Int', 'line': op_token.symbol.line, 'column': op_token.symbol.column}
 
     def visitPrimary(self, ctx: poglinParser.PrimaryContext):
         if ctx.INT():
-            return {'type': 'Int', 'value': int(ctx.INT().getText()), 'line': ctx.INT().symbol.line, 'column': ctx.INT().symbol.column}
+            return {'type': 'Int', 'line': ctx.start.line, 'column': ctx.start.column, 'value': int(ctx.getText())}
         elif ctx.STRING():
-            return {'type': 'String', 'value': ctx.STRING().getText(), 'line': ctx.STRING().symbol.line, 'column': ctx.STRING().symbol.column}
+            return {'type': 'String', 'line': ctx.start.line, 'column': ctx.start.column, 'value': ctx.getText()}
         elif ctx.ID():
-            var_name = ctx.ID().getText()
-            var_line = ctx.ID().symbol.line
-            var_column = ctx.ID().symbol.column
-            symbol_info = self.symbol_table.lookup_symbol(var_name)
-            if not symbol_info:
-                self.report_error(f"Variável '{var_name}' não declarada.", var_line, var_column)
-                return {'type': 'Error', 'line': var_line, 'column': var_column}
-            return {'type': symbol_info['type'], 'line': var_line, 'column': var_column}
+            var_name = ctx.getText()
+            if not self.symbol_table.is_declared(var_name):
+                self.report_error(f"Variável '{var_name}' não declarada.", ctx.start.line, ctx.start.column)
+                return {'type': 'Unknown', 'line': ctx.start.line, 'column': ctx.start.column}
+            return {'type': self.symbol_table.get_type(var_name), 'line': ctx.start.line, 'column': ctx.start.column}
+        elif ctx.READLINE():
+            return {'type': 'String', 'line': ctx.start.line, 'column': ctx.start.column}
         elif ctx.expression():
             return self.visit(ctx.expression())
-        return {'type': 'Error', 'line': ctx.start.line, 'column': ctx.start.column} # Fallback para expressao primaria invalida
+        else:
+            self.report_error("Expressão primária não reconhecida.", ctx.start.line, ctx.start.column)
+            return {'type': 'Error', 'line': ctx.start.line, 'column': ctx.start.column}
