@@ -10,6 +10,7 @@ from src.final_code.llvm_generator import LLVMGenerator
 def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=False):
     print(f"--- Compilando arquivo: {os.path.basename(file_path)} ---")
     
+    # 1. Análise Léxica: Converte o código fonte em tokens.
     print(f"\nIniciando Análise Léxica para: {file_path}")
     lexer_analyzer = PoglinLexerAnalyzer(file_path)
     if not lexer_analyzer.analyze():
@@ -17,6 +18,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         return False
     print("\nAnálise Léxica concluída com sucesso.")
 
+    # 2. Análise Sintática: Constrói a árvore de parse e valida a estrutura.
     print(f"\nIniciando Análise Sintática para: {file_path}")
     token_stream_for_parser = lexer_analyzer.get_antlr_token_stream()
     parser_analyzer = PoglinParserAnalyzer(token_stream_for_parser)
@@ -25,6 +27,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         return False
     print("Análise Sintática concluída com sucesso.")
 
+    # 3. Geração da AST (Opcional): Converte a árvore de parse em uma AST e gera visualização.
     if output_ast:
         print("\nIniciando Geração da AST...")
         ast_generator = ASTGenerator(parser_analyzer.parser)
@@ -33,6 +36,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         output_dir = "output"
         ast_generator.generate_ast(parse_tree, os.path.join(output_dir, f"{base_name}_ast"))
     
+    # 4. Análise Semântica: Verifica a lógica, tipos e escopos do programa.
     print(f"\nIniciando Análise Semântica para: {file_path}")
     semantic_analyzer = SemanticAnalyzer()
     parse_tree = parser_analyzer.get_parse_tree()
@@ -44,6 +48,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         return False
     print("Análise Semântica concluída com sucesso. Nenhum erro encontrado.")
 
+    # 5. Geração de Código Intermediário (TAC): Traduz a AST em Código de Três Endereços.
     print(f"\nIniciando Geração de Código Intermediário (TAC) para: {file_path}")
     tac_generator = TACGenerator()
     tac_generator.set_symbol_table(semantic_analyzer.symbol_table)
@@ -64,7 +69,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
             print(instr)
         print("\nGeração de Código Intermediário (TAC) concluída com sucesso.")
 
-    # Geração de Código Final (LLVM IR)
+    # 6. Geração de Código Final (LLVM IR): Converte o TAC em LLVM Intermediate Representation.
     if output_llvm:
         print(f"\nIniciando Geração de Código Final (LLVM IR) para: {file_path}")
         llvm_generator = LLVMGenerator(tac_instructions, semantic_analyzer.symbol_table)
@@ -79,7 +84,7 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         print(llvm_ir_code)
 
     else:
-        print("\nSkipping LLVM IR generation.") # Informa que não gerou LLVM se a flag não foi usada
+        print("\nSkipping LLVM IR generation.") 
 
     return True
 

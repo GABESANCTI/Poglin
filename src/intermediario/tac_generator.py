@@ -68,8 +68,8 @@ class TACGenerator(poglinVisitor):
             else_label = self.new_label()
             end_if_label = self.new_label()
 
-            self.emit("IF_TRUE", cond_operand, then_label) # Se condicao verdadeira, salta para THEN
-            self.emit("GOTO", else_label) # Se condicao falsa, salta para ELSE (ou fim se nao tiver ELSE)
+            self.emit("IF_TRUE", cond_operand, then_label) # Se verdadeira, salta para THEN
+            self.emit("GOTO", else_label) # Se falsa, salta para ELSE (ou fim se nao tiver ELSE)
             
             # Bloco THEN
             self.emit("LABEL", then_label)
@@ -249,10 +249,10 @@ class TACGenerator(poglinVisitor):
             return TACOperand(ctx.STRING().getText()) # Mantém as aspas para o TAC
         elif ctx.ID():
             return TACOperand(ctx.ID().getText())
-        elif ctx.expression(): # Para LPAREN expression RPAREN
+        elif ctx.expression(): # LPAREN expression RPAREN
             return self.visit(ctx.expression())
         return None # Caso não seja nenhum tipo primário reconhecido
 
     def visitType(self, ctx: poglinParser.TypeContext):
-        # Tipos são usados na análise semântica, não geram TAC diretamente
+        # Tipos são usados na análise semântica, não geram TAC diretament
         return None

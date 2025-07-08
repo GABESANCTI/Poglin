@@ -1,4 +1,3 @@
-
 class TACOperand:
     def __init__(self, value, is_temp=False, is_label=False):
         self.value = value

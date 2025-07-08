@@ -1,4 +1,4 @@
-Anotações finais de como utilizar o poglin
+Anotações finais de como utilizar o compilador poglin
 
 --ast: Gera a Árvore Sintática Abstrata (AST)--> em output/<nome_arquivo>_ast.png.
 
@@ -6,7 +6,13 @@ Anotações finais de como utilizar o poglin
 
 --llvm: Imprime o LLVM IR no console e salva em output/<nome_arquivo>.ll.
 
-exemplo: 
 
+PRONTO PRA RODAR
 
 python main.py tests/classify_triangle.pog --ast --tac --llvm
+python main.py tests/divide_by_zero.pog --ast --tac --llvm
+python main.py tests/exemplo.pog --ast --tac --llvm
+python main.py tests/hello.pog --ast --tac --llvm
+python main.py tests/hello_world.pog --ast --tac --llvm
+python main.py tests/pascal_triangle.pog --ast --tac --llvm
+python main.py tests/sum.pog --ast --tac --llvm
