@@ -1,4 +1,3 @@
-# src/final_code/llvm_generator.py
 import sys
 from llvmlite import ir, binding
 from src.intermediario.tac_classes import TACOperand, TACInstruction
@@ -24,7 +23,6 @@ class LLVMGenerator:
 
         self._declare_external_functions()
 
-        # Inicializa target triple e datalayout corretos para a máquina local
         binding.initialize()
         binding.initialize_native_target()
         binding.initialize_native_asmprinter()
@@ -59,7 +57,21 @@ class LLVMGenerator:
         else:
             raise ValueError(f"Tipo Poglin desconhecido: {poglin_type}")
 
+    def _ensure_variable_allocated(self, name):
+        if name not in self.variables:
+            guessed_type = self.i32  # default Int
+            if self.symbol_table:
+                for scope in self.symbol_table.scopes:
+                    if name in scope:
+                        guessed_type = self._get_llvm_type(scope[name])
+                        break
+            alloca = self.builder.alloca(guessed_type, name=f"var_{name}")
+            self.variables[name] = alloca
+        return self.variables[name]
+
     def _get_llvm_value(self, operand: TACOperand):
+        if operand is None:
+            raise ValueError("Operando nulo encontrado durante a geração de LLVM IR. Verifique o gerador de TAC.")
         if operand.is_temp:
             return self.temporaries[operand.value]
         elif operand.is_label:
@@ -81,14 +93,11 @@ class LLVMGenerator:
 
             return self.builder.gep(global_string, [ir.Constant(self.i32, 0), ir.Constant(self.i32, 0)])
         else:
-            if operand.value in self.variables:
-                return self.builder.load(self.variables[operand.value], name=f"{operand.value}_val")
-            raise ValueError(f"Variável '{operand.value}' não alocada ou não encontrada para LLVM IR.")
+            return self.builder.load(self._ensure_variable_allocated(operand.value), name=f"{operand.value}_val")
 
     def generate(self):
         func_type = ir.FunctionType(self.i32, [])
         self.function = ir.Function(self.module, func_type, name="main")
-
         entry_block = self.function.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(entry_block)
 
@@ -120,26 +129,40 @@ class LLVMGenerator:
 
         for scope in self.symbol_table.scopes:
             for name, var_type in scope.items():
-                if name not in self.variables:
-                    llvm_type = self._get_llvm_type(var_type)
-                    alloca = self.builder.alloca(llvm_type, name=f"var_{name}")
-                    self.variables[name] = alloca
-                    if var_type == 'Int':
-                        self.builder.store(ir.Constant(self.i32, 0), alloca)
-                    elif var_type == 'String':
-                        self.builder.store(ir.Constant(self.i8_ptr, None), alloca)
+                self._ensure_variable_allocated(name)
 
     def _generate_llvm_for_tac_instruction(self, instr: TACInstruction):
         op = instr.opcode
 
         if op == "ASSIGN":
-            value = self._get_llvm_value(instr.arg1)
-            dest_alloca = self.variables[instr.dest.value]
-            self.builder.store(value, dest_alloca)
+            value = self._get_llvm_value(instr.src1)
+
+            var_type = None
+            if self.symbol_table:
+                for scope in self.symbol_table.scopes:
+                    if instr.dest.value in scope:
+                        var_type = scope[instr.dest.value]
+                        break
+            if var_type is None:
+                var_type = "Int"  # fallback
+
+            if instr.dest.value not in self.variables:
+                llvm_type = self._get_llvm_type(var_type)
+                alloca = self.builder.alloca(llvm_type, name=f"var_{instr.dest.value}")
+                self.variables[instr.dest.value] = alloca
+            else:
+                alloca = self.variables[instr.dest.value]
+
+            if var_type == "String":
+                self.builder.store(value, alloca)
+            else:
+                if isinstance(value.type, ir.PointerType):
+                    raise TypeError(f"Trying to store pointer (string) into int variable '{instr.dest.value}'")
+                self.builder.store(value, alloca)
 
         elif op in ("ADD", "SUB", "MUL", "DIV"):
-            left = self._get_llvm_value(instr.arg1)
-            right = self._get_llvm_value(instr.arg2)
+            left = self._get_llvm_value(instr.src1)
+            right = self._get_llvm_value(instr.src2)
             if op == "ADD":
                 result = self.builder.add(left, right, name=instr.dest.value)
             elif op == "SUB":
@@ -150,18 +173,18 @@ class LLVMGenerator:
                 result = self.builder.sdiv(left, right, name=instr.dest.value)
             self.temporaries[instr.dest.value] = result
 
-        elif op in ("EQ", "NEQ", "LT", "LE", "GT", "GE"):
-            left = self._get_llvm_value(instr.arg1)
-            right = self._get_llvm_value(instr.arg2)
+        elif op in ("EQ", "NEQ", "LT", "LTE", "GT", "GTE"):
+            left = self._get_llvm_value(instr.src1)
+            right = self._get_llvm_value(instr.src2)
             cmp_map = {
-                "EQ": "==", "NEQ": "!=", "LT": "<", "LE": "<=", "GT": ">", "GE": ">="
+                "EQ": "==", "NEQ": "!=", "LT": "<", "LTE": "<=", "GT": ">", "GTE": ">="
             }
             result = self.builder.icmp_signed(cmp_map[op], left, right, name=instr.dest.value)
             self.temporaries[instr.dest.value] = result
 
         elif op in ("AND", "OR"):
-            left = self._get_llvm_value(instr.arg1)
-            right = self._get_llvm_value(instr.arg2)
+            left = self._get_llvm_value(instr.src1)
+            right = self._get_llvm_value(instr.src2)
             if op == "AND":
                 result = self.builder.and_(left, right, name=instr.dest.value)
             elif op == "OR":
@@ -169,7 +192,7 @@ class LLVMGenerator:
             self.temporaries[instr.dest.value] = result
 
         elif op == "NOT":
-            value = self._get_llvm_value(instr.arg1)
+            value = self._get_llvm_value(instr.src1)
             result = self.builder.not_(value, name=instr.dest.value)
             self.temporaries[instr.dest.value] = result
 
@@ -177,26 +200,21 @@ class LLVMGenerator:
             label = self.labels[instr.dest.value]
             self.builder.branch(label)
 
-        elif op == "IFZ":  # Se falso, pula
-            condition = self._get_llvm_value(instr.arg1)
+        elif op == "IFZ":
+            condition = self._get_llvm_value(instr.src1)
             false_block = self.labels[instr.dest.value]
             next_block = self.function.append_basic_block(name="ifz_next")
             self.builder.cbranch(condition, next_block, false_block)
             self.builder.position_at_end(next_block)
 
         elif op == "PRINT":
-            value = self._get_llvm_value(instr.arg1)
-            fmt_ptr = self.builder.gep(self.int_fmt_nl, [self.i32(0), self.i32(0)]) if instr.arg1.type == "Int" else self.builder.gep(self.str_fmt_nl, [self.i32(0), self.i32(0)])
+            value = self._get_llvm_value(instr.src1)
+            is_int = isinstance(instr.src1.value, int) or (instr.src1.value in self.symbol_table.all() and self.symbol_table.get_type(instr.src1.value) == "Int")
+            fmt_ptr = self.builder.gep(self.int_fmt_nl if is_int else self.str_fmt_nl, [self.i32(0), self.i32(0)])
             self.builder.call(self.printf, [fmt_ptr, value])
 
         elif op == "READ":
-            dest_alloca = self.variables[instr.dest.value]
-            fmt_ptr = self.builder.gep(self.read_int_fmt, [self.i32(0), self.i32(0)]) if instr.dest.type == "Int" else self.builder.gep(self.read_str_fmt, [self.i32(0), self.i32(0)])
+            dest_alloca = self._ensure_variable_allocated(instr.dest.value)
+            is_int = instr.dest.value in self.symbol_table.all() and self.symbol_table.get_type(instr.dest.value) == "Int"
+            fmt_ptr = self.builder.gep(self.read_int_fmt if is_int else self.read_str_fmt, [self.i32(0), self.i32(0)])
             self.builder.call(self.scanf, [fmt_ptr, dest_alloca])
-
-        elif op == "LABEL":
-            # Já tratado no loop principal
-            pass
-
-        else:
-            print(f"WARNING: Operação TAC não implementada: {instr}")

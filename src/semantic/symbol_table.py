@@ -1,4 +1,3 @@
-# src/semantic/symbol_table.py
 class SymbolTable:
     def __init__(self):
         self.scopes = [{}]
@@ -7,9 +6,14 @@ class SymbolTable:
         self.scopes.append({})
 
     def exit_scope(self):
-        self.scopes.pop()
+        if len(self.scopes) > 1:
+            self.scopes.pop()
+        else:
+            raise Exception("Tentativa de sair do escopo global")
 
     def declare(self, name, var_type):
+        if self.is_declared_in_current_scope(name):
+            raise Exception(f"Variável '{name}' já declarada no escopo atual")
         self.scopes[-1][name] = var_type
 
     def is_declared(self, name):
@@ -28,7 +32,10 @@ class SymbolTable:
         return None
 
     def exists(self, name):
-        for scope in reversed(self.scopes):
-            if name in scope:
-                return True
-        return False
+        return self.is_declared(name)
+
+    def all(self):
+        all_vars = set()
+        for scope in self.scopes:
+            all_vars.update(scope.keys())
+        return all_vars

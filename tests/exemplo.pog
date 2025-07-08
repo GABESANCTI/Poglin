@@ -1,0 +1,9 @@
+start {
+    var nome : String = "Poglin";
+    println(nome);
+
+    var a : Int = 5;
+    var b : Int = 3;
+    var soma : Int = a + b;
+    println(soma);
+} end

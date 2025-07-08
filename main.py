@@ -75,6 +75,9 @@ def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=Fa
         with open(llvm_output_file, "w") as f:
             f.write(llvm_ir_code)
         print(f"Código LLVM IR gerado com sucesso em {llvm_output_file}")
+        print("\n--- Código LLVM IR Gerado ---\n")
+        print(llvm_ir_code)
+
     else:
         print("\nSkipping LLVM IR generation.") # Informa que não gerou LLVM se a flag não foi usada
 

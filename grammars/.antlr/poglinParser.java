@@ -16,7 +16,7 @@ public class poglinParser extends Parser {
 	protected static final PredictionContextCache _sharedContextCache =
 		new PredictionContextCache();
 	public static final int
-		START=1, END=2, VAR=3, IF=4, ELSE=5, WHILE=6, PRINTLN=7, READLINE=8, POG=9, 
+		START=1, END=2, VAR=3, IF=4, ELSE=5, WHILE=6, ESCREVA=7, LEIA=8, POG=9, 
 		INT_TYPE=10, STRING_TYPE=11, PLUS=12, MINUS=13, MULT=14, DIV=15, EQUALS=16, 
 		NEQUALS=17, LT=18, LTE=19, GT=20, GTE=21, AND=22, OR=23, NOT=24, LBRACE=25, 
 		RBRACE=26, LPAREN=27, RPAREN=28, SEMI=29, COLON=30, ASSIGN=31, ID=32, 
@@ -37,16 +37,16 @@ public class poglinParser extends Parser {
 
 	private static String[] makeLiteralNames() {
 		return new String[] {
-			null, "'start'", "'end'", "'var'", "'if'", "'else'", "'while'", "'println'", 
-			"'readLine'", "'pog'", "'Int'", "'String'", "'+'", "'-'", "'*'", "'/'", 
-			"'=='", "'!='", "'<'", "'<='", "'>'", "'>='", "'&&'", "'||'", "'!'", 
-			"'{'", "'}'", "'('", "')'", "';'", "':'", "'='"
+			null, "'start'", "'end'", "'var'", "'if'", "'else'", "'while'", "'escreva'", 
+			"'leia'", "'pog'", "'Int'", "'String'", "'+'", "'-'", "'*'", "'/'", "'=='", 
+			"'!='", "'<'", "'<='", "'>'", "'>='", "'&&'", "'||'", "'!'", "'{'", "'}'", 
+			"'('", "')'", "';'", "':'", "'='"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
 	private static String[] makeSymbolicNames() {
 		return new String[] {
-			null, "START", "END", "VAR", "IF", "ELSE", "WHILE", "PRINTLN", "READLINE", 
+			null, "START", "END", "VAR", "IF", "ELSE", "WHILE", "ESCREVA", "LEIA", 
 			"POG", "INT_TYPE", "STRING_TYPE", "PLUS", "MINUS", "MULT", "DIV", "EQUALS", 
 			"NEQUALS", "LT", "LTE", "GT", "GTE", "AND", "OR", "NOT", "LBRACE", "RBRACE", 
 			"LPAREN", "RPAREN", "SEMI", "COLON", "ASSIGN", "ID", "INT", "STRING", 
@@ -166,22 +166,79 @@ public class poglinParser extends Parser {
 
 	@SuppressWarnings("CheckReturnValue")
 	public static class StatementContext extends ParserRuleContext {
-		public TerminalNode VAR() { return getToken(poglinParser.VAR, 0); }
-		public TerminalNode ID() { return getToken(poglinParser.ID, 0); }
-		public TerminalNode COLON() { return getToken(poglinParser.COLON, 0); }
-		public TypeContext type() {
-			return getRuleContext(TypeContext.class,0);
+		public StatementContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
 		}
+		@Override public int getRuleIndex() { return RULE_statement; }
+	 
+		public StatementContext() { }
+		public void copyFrom(StatementContext ctx) {
+			super.copyFrom(ctx);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class WhileStatementContext extends StatementContext {
+		public TerminalNode WHILE() { return getToken(poglinParser.WHILE, 0); }
+		public TerminalNode LPAREN() { return getToken(poglinParser.LPAREN, 0); }
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public TerminalNode RPAREN() { return getToken(poglinParser.RPAREN, 0); }
+		public TerminalNode LBRACE() { return getToken(poglinParser.LBRACE, 0); }
+		public TerminalNode RBRACE() { return getToken(poglinParser.RBRACE, 0); }
+		public List<StatementContext> statement() {
+			return getRuleContexts(StatementContext.class);
+		}
+		public StatementContext statement(int i) {
+			return getRuleContext(StatementContext.class,i);
+		}
+		public WhileStatementContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class PogStatementContext extends StatementContext {
+		public TerminalNode POG() { return getToken(poglinParser.POG, 0); }
+		public TerminalNode SEMI() { return getToken(poglinParser.SEMI, 0); }
+		public PogStatementContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class PrintStatementContext extends StatementContext {
+		public TerminalNode ESCREVA() { return getToken(poglinParser.ESCREVA, 0); }
+		public TerminalNode LPAREN() { return getToken(poglinParser.LPAREN, 0); }
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public TerminalNode RPAREN() { return getToken(poglinParser.RPAREN, 0); }
+		public TerminalNode SEMI() { return getToken(poglinParser.SEMI, 0); }
+		public PrintStatementContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class AssignmentContext extends StatementContext {
+		public TerminalNode ID() { return getToken(poglinParser.ID, 0); }
 		public TerminalNode ASSIGN() { return getToken(poglinParser.ASSIGN, 0); }
 		public ExpressionContext expression() {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public TerminalNode SEMI() { return getToken(poglinParser.SEMI, 0); }
-		public TerminalNode PRINTLN() { return getToken(poglinParser.PRINTLN, 0); }
+		public AssignmentContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class ReadStatementContext extends StatementContext {
+		public TerminalNode ID() { return getToken(poglinParser.ID, 0); }
+		public TerminalNode ASSIGN() { return getToken(poglinParser.ASSIGN, 0); }
+		public TerminalNode LEIA() { return getToken(poglinParser.LEIA, 0); }
 		public TerminalNode LPAREN() { return getToken(poglinParser.LPAREN, 0); }
 		public TerminalNode RPAREN() { return getToken(poglinParser.RPAREN, 0); }
-		public TerminalNode READLINE() { return getToken(poglinParser.READLINE, 0); }
+		public TerminalNode SEMI() { return getToken(poglinParser.SEMI, 0); }
+		public ReadStatementContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class IfStatementContext extends StatementContext {
 		public TerminalNode IF() { return getToken(poglinParser.IF, 0); }
+		public TerminalNode LPAREN() { return getToken(poglinParser.LPAREN, 0); }
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public TerminalNode RPAREN() { return getToken(poglinParser.RPAREN, 0); }
 		public List<TerminalNode> LBRACE() { return getTokens(poglinParser.LBRACE); }
 		public TerminalNode LBRACE(int i) {
 			return getToken(poglinParser.LBRACE, i);
@@ -197,12 +254,22 @@ public class poglinParser extends Parser {
 			return getRuleContext(StatementContext.class,i);
 		}
 		public TerminalNode ELSE() { return getToken(poglinParser.ELSE, 0); }
-		public TerminalNode WHILE() { return getToken(poglinParser.WHILE, 0); }
-		public TerminalNode POG() { return getToken(poglinParser.POG, 0); }
-		public StatementContext(ParserRuleContext parent, int invokingState) {
-			super(parent, invokingState);
+		public IfStatementContext(StatementContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class VarDeclarationContext extends StatementContext {
+		public TerminalNode VAR() { return getToken(poglinParser.VAR, 0); }
+		public TerminalNode ID() { return getToken(poglinParser.ID, 0); }
+		public TerminalNode COLON() { return getToken(poglinParser.COLON, 0); }
+		public TypeContext type() {
+			return getRuleContext(TypeContext.class,0);
 		}
-		@Override public int getRuleIndex() { return RULE_statement; }
+		public TerminalNode ASSIGN() { return getToken(poglinParser.ASSIGN, 0); }
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public TerminalNode SEMI() { return getToken(poglinParser.SEMI, 0); }
+		public VarDeclarationContext(StatementContext ctx) { copyFrom(ctx); }
 	}
 
 	public final StatementContext statement() throws RecognitionException {
@@ -214,6 +281,7 @@ public class poglinParser extends Parser {
 			_errHandler.sync(this);
 			switch ( getInterpreter().adaptivePredict(_input,5,_ctx) ) {
 			case 1:
+				_localctx = new VarDeclarationContext(_localctx);
 				enterOuterAlt(_localctx, 1);
 				{
 				setState(35);
@@ -233,6 +301,7 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 2:
+				_localctx = new AssignmentContext(_localctx);
 				enterOuterAlt(_localctx, 2);
 				{
 				setState(43);
@@ -246,10 +315,11 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 3:
+				_localctx = new PrintStatementContext(_localctx);
 				enterOuterAlt(_localctx, 3);
 				{
 				setState(48);
-				match(PRINTLN);
+				match(ESCREVA);
 				setState(49);
 				match(LPAREN);
 				setState(50);
@@ -261,6 +331,7 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 4:
+				_localctx = new ReadStatementContext(_localctx);
 				enterOuterAlt(_localctx, 4);
 				{
 				setState(54);
@@ -268,7 +339,7 @@ public class poglinParser extends Parser {
 				setState(55);
 				match(ASSIGN);
 				setState(56);
-				match(READLINE);
+				match(LEIA);
 				setState(57);
 				match(LPAREN);
 				setState(58);
@@ -278,6 +349,7 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 5:
+				_localctx = new IfStatementContext(_localctx);
 				enterOuterAlt(_localctx, 5);
 				{
 				setState(60);
@@ -337,6 +409,7 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 6:
+				_localctx = new WhileStatementContext(_localctx);
 				enterOuterAlt(_localctx, 6);
 				{
 				setState(83);
@@ -368,6 +441,7 @@ public class poglinParser extends Parser {
 				}
 				break;
 			case 7:
+				_localctx = new PogStatementContext(_localctx);
 				enterOuterAlt(_localctx, 7);
 				{
 				setState(96);

@@ -1,17 +1,17 @@
 grammar poglin;
 
-// Palavras-chave
+// Palavras-chave (DEFINIR ANTES de ID!)
 START: 'start';
 END: 'end';
 VAR: 'var';
 IF: 'if';
 ELSE: 'else';
 WHILE: 'while';
-PRINTLN: 'println';
-READLINE: 'readLine';
+ESCREVA: 'escreva';
+LEIA: 'leia';
 POG: 'pog';
-INT_TYPE: 'Int';
 
+INT_TYPE: 'Int';
 STRING_TYPE: 'String';
 
 // Operadores e símbolos
@@ -39,24 +39,27 @@ SEMI: ';';
 COLON: ':';
 ASSIGN: '=';
 
+// Literais e identificadores
 ID: [a-zA-Z_][a-zA-Z_0-9]* ;
 INT: [0-9]+ ;
 STRING: '"' ( ~["\\\r\n] | '\\' . )* '"' ;
 
+// Espaços e comentários
 WS: [ \t\r\n]+ -> skip ;
 COMMENT: '//' ~[\r\n]* -> skip ;
 
-// Regras principais
+// ------------------ Regras ------------------
+
 program: START LBRACE statement* RBRACE END ;
 
 statement
-    : VAR ID COLON type ASSIGN expression SEMI
-    | ID ASSIGN expression SEMI
-    | PRINTLN LPAREN expression RPAREN SEMI
-    | ID ASSIGN READLINE LPAREN RPAREN SEMI
-    | IF LPAREN expression RPAREN LBRACE statement* RBRACE (ELSE LBRACE statement* RBRACE)?
-    | WHILE LPAREN expression RPAREN LBRACE statement* RBRACE
-    | POG SEMI
+    : VAR ID COLON type ASSIGN expression SEMI          #varDeclaration
+    | ID ASSIGN expression SEMI                         #assignment
+    | ESCREVA LPAREN expression RPAREN SEMI             #printStatement
+    | ID ASSIGN LEIA LPAREN RPAREN SEMI                 #readStatement
+    | IF LPAREN expression RPAREN LBRACE statement* RBRACE (ELSE LBRACE statement* RBRACE)? #ifStatement
+    | WHILE LPAREN expression RPAREN LBRACE statement* RBRACE                                #whileStatement
+    | POG SEMI                                          #pogStatement
     ;
 
 expression: logicalOrExpression ;
