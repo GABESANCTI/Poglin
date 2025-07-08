@@ -1,3 +1,4 @@
+
 import sys
 from llvmlite import ir, binding
 from src.intermediario.tac_classes import TACOperand, TACInstruction
@@ -39,15 +40,30 @@ class LLVMGenerator:
         scanf_type = ir.FunctionType(self.i32, [self.i8_ptr], var_arg=True)
         self.scanf = ir.Function(self.module, scanf_type, name="scanf")
 
-        self.str_fmt_nl = ir.Constant(ir.ArrayType(self.i8, len("%s\n\0")), bytearray("%s\n\0".encode('utf8')))
-        self.int_fmt_nl = ir.Constant(ir.ArrayType(self.i8, len("%d\n\0")), bytearray("%d\n\0".encode('utf8')))
-        self.read_int_fmt = ir.Constant(ir.ArrayType(self.i8, len("%d\0")), bytearray("%d\0".encode('utf8')))
-        self.read_str_fmt = ir.Constant(ir.ArrayType(self.i8, len("%s\0")), bytearray("%s\0".encode('utf8')))
-        self.space_str = ir.Constant(ir.ArrayType(self.i8, len(" \0")), bytearray(" \0".encode('utf8')))
-        self.empty_str_nl = ir.Constant(ir.ArrayType(self.i8, len("\n\0")), bytearray("\n\0".encode('utf8')))
+        self.str_fmt_nl = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, len("%s\n\0")), name="str_fmt_nl")
+        self.str_fmt_nl.linkage = 'internal'
+        self.str_fmt_nl.global_constant = True
+        self.str_fmt_nl.initializer = ir.Constant(ir.ArrayType(self.i8, len("%s\n\0")), bytearray("%s\n\0".encode('utf8')))
 
-        strcmp_type = ir.FunctionType(self.i32, [self.i8_ptr, self.i8_ptr])
-        self.strcmp = ir.Function(self.module, strcmp_type, name="strcmp")
+        self.int_fmt_nl = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, len("%d\n\0")), name="int_fmt_nl")
+        self.int_fmt_nl.linkage = 'internal'
+        self.int_fmt_nl.global_constant = True
+        self.int_fmt_nl.initializer = ir.Constant(ir.ArrayType(self.i8, len("%d\n\0")), bytearray("%d\n\0".encode('utf8')))
+
+        self.read_int_fmt = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, len("%d\0")), name="read_int_fmt")
+        self.read_int_fmt.linkage = 'internal'
+        self.read_int_fmt.global_constant = True
+        self.read_int_fmt.initializer = ir.Constant(ir.ArrayType(self.i8, len("%d\0")), bytearray("%d\0".encode('utf8')))
+
+        self.read_str_fmt = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, len("%s\0")), name="read_str_fmt")
+        self.read_str_fmt.linkage = 'internal'
+        self.read_str_fmt.global_constant = True
+        self.read_str_fmt.initializer = ir.Constant(ir.ArrayType(self.i8, len("%s\0")), bytearray("%s\0".encode('utf8')))
+
+        self.temp_str_buffer = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, 256), name="temp_str_buffer")
+        self.temp_str_buffer.linkage = "internal"
+        self.temp_str_buffer.global_constant = False
+        self.temp_str_buffer.initializer = ir.Constant(ir.ArrayType(self.i8, 256), bytearray(256))
 
     def _get_llvm_type(self, poglin_type):
         if poglin_type == 'Int':
@@ -72,16 +88,21 @@ class LLVMGenerator:
     def _get_llvm_value(self, operand: TACOperand):
         if operand is None:
             raise ValueError("Operando nulo encontrado durante a geração de LLVM IR. Verifique o gerador de TAC.")
+        
         if operand.is_temp:
+            if operand.value not in self.temporaries:
+                raise ValueError(f"Temporária '{operand.value}' não alocada na geração LLVM.")
             return self.temporaries[operand.value]
         elif operand.is_label:
+            if operand.value not in self.labels:
+                raise ValueError(f"Label '{operand.value}' não encontrada na geração LLVM.")
             return self.labels[operand.value]
         elif isinstance(operand.value, int):
             return ir.Constant(self.i32, operand.value)
         elif isinstance(operand.value, str) and operand.value.startswith('"') and operand.value.endswith('"'):
             actual_string = operand.value[1:-1] + '\0'
             byte_array = bytearray(actual_string.encode('utf8'))
-            global_string_name = f"str_const_{hash(actual_string)}"
+            global_string_name = f"str_const_{abs(hash(actual_string))}"
 
             if global_string_name not in self.module.globals:
                 global_string = ir.GlobalVariable(self.module, ir.ArrayType(self.i8, len(byte_array)), name=global_string_name)
@@ -93,7 +114,8 @@ class LLVMGenerator:
 
             return self.builder.gep(global_string, [ir.Constant(self.i32, 0), ir.Constant(self.i32, 0)])
         else:
-            return self.builder.load(self._ensure_variable_allocated(operand.value), name=f"{operand.value}_val")
+            var_alloca = self._ensure_variable_allocated(operand.value)
+            return self.builder.load(var_alloca, name=f"{operand.value}_val")
 
     def generate(self):
         func_type = ir.FunctionType(self.i32, [])
@@ -127,94 +149,47 @@ class LLVMGenerator:
 
         self.builder.position_at_end(self.function.entry_basic_block)
 
-        for scope in self.symbol_table.scopes:
-            for name, var_type in scope.items():
+        if hasattr(self.symbol_table, "global_snapshot"):
+            for name, var_type in self.symbol_table.global_snapshot.items():
                 self._ensure_variable_allocated(name)
+        else:
+            for scope in self.symbol_table.scopes:
+                for name, var_type in scope.items():
+                    self._ensure_variable_allocated(name)
 
     def _generate_llvm_for_tac_instruction(self, instr: TACInstruction):
         op = instr.opcode
 
         if op == "ASSIGN":
             value = self._get_llvm_value(instr.src1)
+            alloca = self._ensure_variable_allocated(instr.dest.value)
+            self.builder.store(value, alloca)
 
-            var_type = None
-            if self.symbol_table:
-                for scope in self.symbol_table.scopes:
-                    if instr.dest.value in scope:
-                        var_type = scope[instr.dest.value]
-                        break
-            if var_type is None:
-                var_type = "Int"  # fallback
-
-            if instr.dest.value not in self.variables:
-                llvm_type = self._get_llvm_type(var_type)
-                alloca = self.builder.alloca(llvm_type, name=f"var_{instr.dest.value}")
-                self.variables[instr.dest.value] = alloca
-            else:
-                alloca = self.variables[instr.dest.value]
-
-            if var_type == "String":
-                self.builder.store(value, alloca)
-            else:
-                if isinstance(value.type, ir.PointerType):
-                    raise TypeError(f"Trying to store pointer (string) into int variable '{instr.dest.value}'")
-                self.builder.store(value, alloca)
-
-        elif op in ("ADD", "SUB", "MUL", "DIV"):
+        elif op == "ADD":
             left = self._get_llvm_value(instr.src1)
             right = self._get_llvm_value(instr.src2)
-            if op == "ADD":
-                result = self.builder.add(left, right, name=instr.dest.value)
-            elif op == "SUB":
-                result = self.builder.sub(left, right, name=instr.dest.value)
-            elif op == "MUL":
-                result = self.builder.mul(left, right, name=instr.dest.value)
-            elif op == "DIV":
-                result = self.builder.sdiv(left, right, name=instr.dest.value)
+            result = self.builder.add(left, right, name=instr.dest.value)
             self.temporaries[instr.dest.value] = result
-
-        elif op in ("EQ", "NEQ", "LT", "LTE", "GT", "GTE"):
-            left = self._get_llvm_value(instr.src1)
-            right = self._get_llvm_value(instr.src2)
-            cmp_map = {
-                "EQ": "==", "NEQ": "!=", "LT": "<", "LTE": "<=", "GT": ">", "GTE": ">="
-            }
-            result = self.builder.icmp_signed(cmp_map[op], left, right, name=instr.dest.value)
-            self.temporaries[instr.dest.value] = result
-
-        elif op in ("AND", "OR"):
-            left = self._get_llvm_value(instr.src1)
-            right = self._get_llvm_value(instr.src2)
-            if op == "AND":
-                result = self.builder.and_(left, right, name=instr.dest.value)
-            elif op == "OR":
-                result = self.builder.or_(left, right, name=instr.dest.value)
-            self.temporaries[instr.dest.value] = result
-
-        elif op == "NOT":
-            value = self._get_llvm_value(instr.src1)
-            result = self.builder.not_(value, name=instr.dest.value)
-            self.temporaries[instr.dest.value] = result
-
-        elif op == "JUMP":
-            label = self.labels[instr.dest.value]
-            self.builder.branch(label)
-
-        elif op == "IFZ":
-            condition = self._get_llvm_value(instr.src1)
-            false_block = self.labels[instr.dest.value]
-            next_block = self.function.append_basic_block(name="ifz_next")
-            self.builder.cbranch(condition, next_block, false_block)
-            self.builder.position_at_end(next_block)
 
         elif op == "PRINT":
-            value = self._get_llvm_value(instr.src1)
-            is_int = isinstance(instr.src1.value, int) or (instr.src1.value in self.symbol_table.all() and self.symbol_table.get_type(instr.src1.value) == "Int")
-            fmt_ptr = self.builder.gep(self.int_fmt_nl if is_int else self.str_fmt_nl, [self.i32(0), self.i32(0)])
+            src = instr.src1 if instr.src1 is not None else instr.dest
+            value = self._get_llvm_value(src)
+
+            is_int = False
+            if isinstance(src.value, int):
+                is_int = True
+            else:
+                var_type = None
+                if self.symbol_table:
+                    for scope in self.symbol_table.scopes:
+                        if src.value in scope:
+                            var_type = scope[src.value]
+                            break
+                is_int = (var_type == "Int")
+
+            fmt_global = self.int_fmt_nl if is_int else self.str_fmt_nl
+            fmt_ptr = self.builder.gep(fmt_global, [ir.Constant(self.i32, 0), ir.Constant(self.i32, 0)])
             self.builder.call(self.printf, [fmt_ptr, value])
 
-        elif op == "READ":
-            dest_alloca = self._ensure_variable_allocated(instr.dest.value)
-            is_int = instr.dest.value in self.symbol_table.all() and self.symbol_table.get_type(instr.dest.value) == "Int"
-            fmt_ptr = self.builder.gep(self.read_int_fmt if is_int else self.read_str_fmt, [self.i32(0), self.i32(0)])
-            self.builder.call(self.scanf, [fmt_ptr, dest_alloca])
+        elif op == "EXIT":
+            self.builder.ret(ir.Constant(self.i32, 0))
