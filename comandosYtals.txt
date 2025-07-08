@@ -16,3 +16,10 @@ python main.py tests/hello.pog --ast --tac --llvm
 python main.py tests/hello_world.pog --ast --tac --llvm
 python main.py tests/pascal_triangle.pog --ast --tac --llvm
 python main.py tests/sum.pog --ast --tac --llvm
+
+
+//testes finais com cmd admin elevado
+**compilar
+clang output/classify_triangle.ll -o output/classify_triangle
+**depois
+./output/classify_triangle

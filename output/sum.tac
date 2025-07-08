@@ -1,14 +1,10 @@
 LABEL $L0
-ASSIGN num1_str "0"
-ASSIGN num2_str "0"
-ASSIGN sum_result ""
-PRINT "Digite o primeiro numero:"
-READ num1_str
-PRINT "Digite o segundo numero:"
-READ num2_str
-ADD @_t0 num1_str num2_str
-ASSIGN sum_result @_t0
-ADD @_t1 "A concatenacao e: " sum_result
-PRINT @_t1
+ASSIGN num1 10
+ASSIGN num2 20
+ASSIGN sum 0
+ADD @_t0 num1 num2
+ASSIGN sum @_t0
+PRINT "A soma dos inteiros e: "
+PRINT sum
 POG_OP
 EXIT

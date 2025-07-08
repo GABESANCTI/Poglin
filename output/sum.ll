@@ -14,26 +14,24 @@ declare i32 @"scanf"(i8* %".1", ...)
 define i32 @"main"()
 {
 entry:
-  %"var_nome" = alloca i8*
-  %"var_a" = alloca i32
-  %"var_b" = alloca i32
-  %"var_soma" = alloca i32
+  %"var_num1" = alloca i32
+  %"var_num2" = alloca i32
+  %"var_sum" = alloca i32
 L0:
-  %".2" = getelementptr [7 x i8], [7 x i8]* @"str_const_4774949917924357282", i32 0, i32 0
-  store i8* %".2", i8** %"var_nome"
-  %"nome_val" = load i8*, i8** %"var_nome"
-  %".4" = getelementptr [4 x i8], [4 x i8]* @"str_fmt_nl", i32 0, i32 0
-  %".5" = call i32 (i8*, ...) @"printf"(i8* %".4", i8* %"nome_val")
-  store i32 5, i32* %"var_a"
-  store i32 3, i32* %"var_b"
-  %"a_val" = load i32, i32* %"var_a"
-  %"b_val" = load i32, i32* %"var_b"
-  %"_t0" = add i32 %"a_val", %"b_val"
-  store i32 %"_t0", i32* %"var_soma"
-  %"soma_val" = load i32, i32* %"var_soma"
+  store i32 10, i32* %"var_num1"
+  store i32 20, i32* %"var_num2"
+  store i32 0, i32* %"var_sum"
+  %"num1_val" = load i32, i32* %"var_num1"
+  %"num2_val" = load i32, i32* %"var_num2"
+  %"_t0" = add i32 %"num1_val", %"num2_val"
+  store i32 %"_t0", i32* %"var_sum"
+  %".6" = getelementptr [24 x i8], [24 x i8]* @"str_const_8969352413057425862", i32 0, i32 0
+  %".7" = getelementptr [4 x i8], [4 x i8]* @"str_fmt_nl", i32 0, i32 0
+  %".8" = call i32 (i8*, ...) @"printf"(i8* %".7", i8* %".6")
+  %"sum_val" = load i32, i32* %"var_sum"
   %".9" = getelementptr [4 x i8], [4 x i8]* @"int_fmt_nl", i32 0, i32 0
-  %".10" = call i32 (i8*, ...) @"printf"(i8* %".9", i32 %"soma_val")
+  %".10" = call i32 (i8*, ...) @"printf"(i8* %".9", i32 %"sum_val")
   ret i32 0
 }
 
-@"str_const_4774949917924357282" = private constant [7 x i8] c"Poglin\00"
+@"str_const_8969352413057425862" = private constant [24 x i8] c"A soma dos inteiros e: \00"

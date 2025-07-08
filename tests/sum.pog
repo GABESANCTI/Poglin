@@ -1,16 +1,11 @@
 start {
-    var num1_str : String = "0";
-    var num2_str : String = "0";
-    var sum_result : String = "";
+    var num1 : Int = 10;
+    var num2 : Int = 20;
+    var sum : Int = 0;
 
-    println("Digite o primeiro numero:");
-    num1_str = readLine();
+    sum = num1 + num2;
 
-    println("Digite o segundo numero:");
-    num2_str = readLine();
-
-    sum_result = num1_str + num2_str;
-
-    println("A concatenacao e: " + sum_result);
+    println("A soma dos inteiros e: " );
+    println(sum);
     pog;
 } end
