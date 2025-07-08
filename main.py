@@ -1,5 +1,3 @@
-# main.py (FINALIZADO COM LLVM IR)
-
 import sys
 import os
 from src.lexer.poglin_lexer import PoglinLexerAnalyzer
@@ -7,7 +5,7 @@ from src.parser.poglin_parser import PoglinParserAnalyzer
 from src.ast.ast_generator import ASTGenerator
 from src.semantic.semantic_analyzer import SemanticAnalyzer
 from src.intermediario.tac_generator import TACGenerator
-from src.final_code.llvm_generator import LLVMGenerator # Importa o gerador LLVM IR
+from src.final_code.llvm_generator import LLVMGenerator 
 
 def compile_poglin(file_path, output_ast=False, output_tac=False, output_llvm=False):
     print(f"--- Compilando arquivo: {os.path.basename(file_path)} ---")

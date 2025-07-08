@@ -11,18 +11,9 @@ declare i32 @"strcmp"(i8* %".1", i8* %".2")
 define i32 @"main"()
 {
 entry:
-L0:
-L1:
-L2:
-L4:
-L7:
-L8:
-L10:
-L11:
-L12:
-L9:
-L5:
-L6:
-L3:
+  %".2" = getelementptr inbounds [5 x i8], [5 x i8]* @"str_-5147196572407435871", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
   ret i32 0
 }
+
+@"str_-5147196572407435871" = internal constant [5 x i8] c"pog\0a\00"

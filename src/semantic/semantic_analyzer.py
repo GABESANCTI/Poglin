@@ -1,4 +1,4 @@
-# src/semantic/semantic_analyzer.py
+
 import sys
 from src.lexer.poglinParser import poglinParser
 from src.lexer.poglinVisitor import poglinVisitor

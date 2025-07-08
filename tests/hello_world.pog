@@ -1,0 +1,4 @@
+start {
+    println("Hello, World!");
+} end
+ 

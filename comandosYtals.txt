@@ -7,3 +7,6 @@ Anotações finais de como utilizar o poglin
 --llvm: Imprime o LLVM IR no console e salva em output/<nome_arquivo>.ll.
 
 exemplo: 
+
+
+python main.py tests/classify_triangle.pog --ast --tac --llvm

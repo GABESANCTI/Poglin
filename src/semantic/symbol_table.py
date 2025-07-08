@@ -1,4 +1,5 @@
-class SymbolTable: 
+# src/semantic/symbol_table.py
+class SymbolTable:
     def __init__(self):
         self.scopes = [{}]
 
@@ -27,6 +28,7 @@ class SymbolTable:
         return None
 
     def exists(self, name):
-        return self.is_declared(name)  # ou copia a lógica direto aqui
-    def add(self, name, var_type):
-        self.declare(name, var_type)
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return True
+        return False
