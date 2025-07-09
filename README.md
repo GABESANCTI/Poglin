@@ -33,7 +33,7 @@ while (cond) { bloco }
 
 ---
 
-## Fluxograma das Fases do Compilador (Mermaid)
+## Fluxograma das Fases do Compilador 
 
 ```mermaid
 %%{ init : { "theme": "dark" } }%%
