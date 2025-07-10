@@ -20,6 +20,8 @@ python main.py tests/sum.pog --ast --tac --llvm
 
 //testes finais com cmd admin elevado
 **compilar
-clang output/classify_triangle.ll -o output/classify_triangle
+
+clang output/classify_triangle.ll -o output/classify_triangle.exe
+
 **depois
 ./output/classify_triangle

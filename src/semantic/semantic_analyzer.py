@@ -25,7 +25,7 @@ class SemanticAnalyzer(poglinVisitor):
         self.symbol_table.enter_scope()
         self.visitChildren(ctx)
 
-        # Captura o escopo global (não joga fora as variáveis declaradas)
+        # Captura o escopo global não joga fora as variáveis declaradas
         self.symbol_table.global_snapshot = self.symbol_table.scopes[-1].copy()
 
         # self.symbol_table.exit_scope()  # <- Comentado para preservar os símbolos

@@ -1,5 +1,6 @@
 start {
-    var msg : String = "Hello from Poglin!";
+    var msg : String = "Hello Poglin!";
     println(msg);
     pog;
+//esse é um comentario
 } end

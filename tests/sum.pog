@@ -6,6 +6,6 @@ start {
     sum = num1 + num2;
 
     println("A soma dos inteiros e: " );
-    println(sum);
+    println(sum);  
     pog;
 } end

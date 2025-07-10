@@ -3,10 +3,9 @@ import sys
 from llvmlite import ir, binding
 from src.intermediario.tac_classes import TACOperand, TACInstruction
 from src.semantic.symbol_table import *
-
 class LLVMGenerator:
     def __init__(self, tac_instructions, symbol_table):
-        self.tac_instructions = tac_instructions
+        self.tac_instructions = tac_instructions 
         self.symbol_table = symbol_table
         self.module = ir.Module(name="poglin_module")
         self.builder = None

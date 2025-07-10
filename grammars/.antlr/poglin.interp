@@ -6,8 +6,8 @@ null
 'if'
 'else'
 'while'
-'escreva'
-'leia'
+'println'
+'readLine'
 'pog'
 'Int'
 'String'
@@ -45,8 +45,8 @@ VAR
 IF
 ELSE
 WHILE
-ESCREVA
-LEIA
+PRINTLN
+READLINE
 POG
 INT_TYPE
 STRING_TYPE
